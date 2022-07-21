@@ -73,7 +73,7 @@ python cpubenchmarkapi.py
 ```
 
 Additionally, you can specify your own input and output files by 
-tacking on -i and -o files, respectfully, so you don't the script 
+tacking on -i and -o flags, respectfully, so you don't the script 
 will use those rather than the default ```cpus.txt``` and 
 ```cpuData.csv``` as seen here:
 ```
