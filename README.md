@@ -43,7 +43,7 @@ Usage
 Before you run the script, make sure you have a cpus.txt file.
 That file should look something like this:
 ```
-Intel Xeon X5650 @ 2.67GHZ&cpuCount=2
+Intel Xeon X5650 @ 2.67GHz&cpuCount=2
 Intel Core i7-6920HQ @ 2.90GHz
 Intel Core i9-9900K @ 3.60GHz
 Intel Xeon E5-2670 v2 @ 2.50GHz
@@ -72,10 +72,11 @@ or
 python cpubenchmarkapi.py
 ```
 
-Additionally, you can specify your own input and output files by 
-tacking on -i and/or -o flags, respectfully, this will tell the script 
-to use those rather than the default ```cpus.txt``` and 
-```cpuData.csv``` as seen here:
+Additionally, you can specify your own input and output files by
+tacking on -i and/or -o flags, respectfully, this will tell the 
+script to use those rather than the default ```cpus.txt``` and 
+```cpuData.csv``` 
+as seen here:
 ```
 ./cpubenchmarkapi.py -i serverCPUs.txt -o serverCPUsData.csv
 ```
