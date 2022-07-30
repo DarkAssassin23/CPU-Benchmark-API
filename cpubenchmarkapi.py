@@ -180,6 +180,25 @@ def addAuxData(currentData):
 
                 count += 1
 
+# Adds a ranking based on overall score and 
+# single threaded score
+def rankCPUs():
+    overallScores = [None] * len(cpuDict["Name"])
+    singleThreadScores = [None] * len(cpuDict["Name"])
+    for x in range(len(cpuDict["Name"])):
+        overallScores[x] = int(cpuDict["Overall Score"][x])
+        singleThreadScores[x] = int(cpuDict["Single Thread Rating"][x])
+
+    overallScores.sort(reverse=True)
+    singleThreadScores.sort(reverse=True)
+
+    cpuDict["Overall Rank"] = [None] * len(cpuDict["Name"])
+    cpuDict["Single Threaded Rank"] = [None] * len(cpuDict["Name"])
+
+    for x in range(len(cpuDict["Name"])):
+        cpuDict["Overall Rank"][x] = overallScores.index(int(cpuDict["Overall Score"][x]))+1
+        cpuDict["Single Threaded Rank"][x] = singleThreadScores.index(int(cpuDict["Single Thread Rating"][x]))+1
+
 # If the output CSV file exists, it gets read in
 # so if you added additional info to the csv
 # that info will be transfered, if the cpu exists
@@ -194,6 +213,7 @@ def readCSV():
                         d[k] = []
                     d[k].append(v)
     return d
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='API to pull CPU data from cpubenchmark.net')
@@ -234,14 +254,15 @@ if __name__ == "__main__":
             getDetails(soup, dualCPU)
 
             fillGaps()
-
+        
+        rankCPUs()
         addAuxData(currentData)
         exportToCSV()
         print("done.")
     except:
         print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
         print("Make sure the CPU is valid and/or formatted correctly, as seen below:")
-        print("Intel Xeon X5650 @ 2.67GHZ&cpuCount=2")
+        print("Intel Xeon X5650 @ 2.67GHz&cpuCount=2")
         print("Intel Core i7-6920HQ @ 2.90GHz")
         print("Intel Core i9-9900K @ 3.60GHz")
         print("Intel Xeon E5-2670 v2 @ 2.50GHz")
