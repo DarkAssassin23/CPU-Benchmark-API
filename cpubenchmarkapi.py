@@ -107,10 +107,10 @@ def getDetails(soup, dualCPU):
                     if("Total Cores" in x.text):
                         string += x.text[x.text.find("Cores"):x.text.find("Cores,")]+"\n"
                         string += "Threads:"+x.text[x.text.find(",")+1:x.text.find("Threads")]+"\n"
-                    elif("Primary Cores" in x.text):
+                    elif("Primary" in x.text or "Performance" in x.text):
                         string += "Clockspeed:"+x.text[x.text.find("Threads,")+8:x.text.find("Base")]+"\n"
                         string += "Turbo Speed:"+x.text[x.text.find("Base,")+5:x.text.find("Turbo")]+"\n"
-                    elif("Secondary Cores" in x.text):
+                    elif("Secondary" in x.text or "Efficient" in x.text):
                         pass
                     else:
                         string += x.text[:x.text.find("Threads")]+"\n"
