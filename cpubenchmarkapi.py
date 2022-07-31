@@ -273,6 +273,7 @@ if __name__ == "__main__":
         print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
         print("Make sure the CPU is valid and/or formatted correctly, as seen below:")
         print("Intel Xeon X5650 @ 2.67GHz&cpuCount=2")
+        print("Apple M1 Pro 10 Core")
         print("Intel Core i7-6920HQ @ 2.90GHz")
         print("Intel Core i9-9900K @ 3.60GHz")
         print("Intel Xeon E5-2670 v2 @ 2.50GHz")

@@ -44,6 +44,7 @@ Before you run the script, make sure you have a cpus.txt file.
 That file should look something like this:
 ```
 Intel Xeon X5650 @ 2.67GHz&cpuCount=2
+Apple M1 Pro 10 Core
 Intel Core i7-6920HQ @ 2.90GHz
 Intel Core i9-9900K @ 3.60GHz
 Intel Xeon E5-2670 v2 @ 2.50GHz
