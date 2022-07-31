@@ -87,6 +87,7 @@ def getOverallScore(soup):
 def getDetails(soup, dualCPU):
     data = soup.find_all('p', class_="bg-table-row")
     data += soup.find_all('p', class_="mobile-column")
+    data += soup.find_all('p', attrs={"style":"padding-left: 35px;"})
     string = ""
     for x in data:
         if(("Cores" in x.text or "TDP" in x.text) and dualCPU):
@@ -103,15 +104,24 @@ def getDetails(soup, dualCPU):
         elif(not("TDP Down" in x.text) and not("TDP Up" in x.text)):
             if("Cores" in x.text and not dualCPU):
                 if("Threads" in x.text):
-                    string += x.text[:x.text.find("Threads")]+"\n"
-                    string += x.text[x.text.find("Threads"):]
+                    if("Total Cores" in x.text):
+                        string += x.text[x.text.find("Cores"):x.text.find("Cores,")]+"\n"
+                        string += "Threads:"+x.text[x.text.find(",")+1:x.text.find("Threads")]+"\n"
+                    elif("Primary Cores" in x.text):
+                        string += "Clockspeed:"+x.text[x.text.find("Threads,")+8:x.text.find("Base")]+"\n"
+                        string += "Turbo Speed:"+x.text[x.text.find("Base,")+5:x.text.find("Turbo")]+"\n"
+                    elif("Secondary Cores" in x.text):
+                        pass
+                    else:
+                        string += x.text[:x.text.find("Threads")]+"\n"
+                        string += x.text[x.text.find("Threads"):]
                 else:
                     string += x.text[:x.text.find(" ", x.text.find(" ")+1)]+"\n"
                     string += "Threads: "+x.text[x.text.find(":")+1:x.text.find(" ", x.text.find(" ")+1)]
             else:
                 string += x.text+"\n"
 
-    d = dict(x.split(":") for x in string.split("\n"))
+    d = dict(x.split(":") for x in string.strip().split("\n"))
     for k, v in d.items():
         if(("TDP" in k or "Cores" in k or "Threads" in k) and dualCPU):
             if("TDP" in k):
@@ -123,7 +133,7 @@ def getDetails(soup, dualCPU):
         if("TDP" in k):
             cpuDict["TDP"].append(v)
         else:
-            if(v==' '):
+            if(v==' ' or 'NA' in str(v)):
                 v = "N/A"
             cpuDict[k].append(v)
     return d
