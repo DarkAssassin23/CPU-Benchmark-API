@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 from requests import get
 from bs4 import BeautifulSoup as bs
-import csv, os, argparse
+from multiprocessing import Process, Queue
+import csv, os, argparse, time
 
 baseURL = "https://www.cpubenchmark.net/cpu.php?cpu="
 # Default List of CPUs file
 cpuListFileName = "cpus.txt"
 # Default csv file
 csvFileName = "cpuData.csv"
-cpuDict = {
+numCPUs = os.cpu_count()
+processes = []
+cpuDataDict = {
     "Name":[],
     "CPU Class":[],
     "Socket":[],
@@ -23,7 +26,7 @@ cpuDict = {
     }
 
 # Extracts the name of the CPU from the website
-def getCPUName(soup):
+def getCPUName(soup, cpuDict):
     nameLine = soup.find_all('span', class_="cpuname")
     for n in nameLine:
         print(n.text)
@@ -34,7 +37,7 @@ def getCPUName(soup):
             return False
 
 # Extracts the single thread rating of the CPU from the website
-def getSingleThreadedScore(soup):
+def getSingleThreadedScore(soup, cpuDict):
     data = soup.get_text()
     location = data.find("Single Thread Rating:")
     str = data[location:data.find('\n',location)]
@@ -45,7 +48,7 @@ def getSingleThreadedScore(soup):
 
 # Extracts the class of the CPU from the website
 # ex. Laptop, Desktop, Server
-def getChipType(soup):
+def getChipType(soup, cpuDict):
     data = soup.get_text()
     location = data.find("Class:")
     str = data[location:data.find('\n',location)]
@@ -57,7 +60,7 @@ def getChipType(soup):
         cpuDict["CPU Class"].append(v)
 
 # Extracts the type of socket the CPU is made for from the website
-def getSocketType(soup):
+def getSocketType(soup, cpuDict):
     data = soup.get_text()
     location = data.find("Socket:")
     str = data[location:data.find('\n',location)]
@@ -69,7 +72,7 @@ def getSocketType(soup):
         cpuDict[k].append(v)
 
 # Extracts the quarter and year the CPU was released from the website
-def getTimeOfRelease(soup):
+def getTimeOfRelease(soup, cpuDict):
     data = soup.get_text()
     location = data.find("CPU First Seen on Charts:")
     str = data[location+25:data.find('\n',location)]
@@ -77,14 +80,14 @@ def getTimeOfRelease(soup):
     cpuDict["Launched"].append(str)
 
 # Extracts the Overall Score of the CPU from the website
-def getOverallScore(soup):
+def getOverallScore(soup, cpuDict):
     overallScore = soup.find_all('span', attrs={'style':"font-family: Arial, Helvetica, sans-serif;font-size: 44px;	font-weight: bold; color: #F48A18;"})
     for os in overallScore:
         cpuDict["Overall Score"].append(os.text)
 
 # Extracts the additional details about the CPU from the website
 # ex. TDP, Number of Cores, Number of Threads, Clockspeeds, etc.
-def getDetails(soup, dualCPU):
+def getDetails(soup, dualCPU, cpuDict):
     data = soup.find_all('p', class_="bg-table-row")
     data += soup.find_all('p', class_="mobile-column")
     data += soup.find_all('p', attrs={"style":"padding-left: 35px;"})
@@ -159,7 +162,7 @@ def getCPUs():
 
 # Fills in any blanks in data after the 
 # CPUs data has been gathered 
-def fillGaps():
+def fillGaps(cpuDict):
     # Make sure all categories were filled out
     targetLen = len(cpuDict["Name"])
     for k,v in cpuDict.items():
@@ -168,7 +171,7 @@ def fillGaps():
 
 # Exports all the CPU data to the specified 
 # csv file
-def exportToCSV():
+def exportToCSV(cpuDict):
     print("Generating \'"+csvFileName+"\'...")
     with open(csvFileName, 'w') as f:
         writer = csv.writer(f)
@@ -176,7 +179,7 @@ def exportToCSV():
         writer.writerows(zip(*cpuDict.values()))
 
 # Adds any auxiliary data to the respective cpu
-def addAuxData(currentData):
+def addAuxData(currentData, cpuDict):
     for k,v in currentData.items():
         # If k is not in cpuDict it is auxiliary
         if not k in cpuDict:
@@ -192,7 +195,7 @@ def addAuxData(currentData):
 
 # Adds a ranking based on overall score and 
 # single threaded score
-def rankCPUs():
+def rankCPUs(cpuDict):
     overallScores = [None] * len(cpuDict["Name"])
     singleThreadScores = [None] * len(cpuDict["Name"])
     for x in range(len(cpuDict["Name"])):
@@ -224,28 +227,22 @@ def readCSV():
                     d[k].append(v)
     return d
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='API to pull CPU data from cpubenchmark.net')
-    parser.add_argument('-i', nargs=1, metavar="file", help="input file containing a list of CPUs")
-    parser.add_argument('-o', nargs=1, metavar="file", help="output file to save data to")
-
-    args = parser.parse_args()
-    if(args.i is not None):
-        cpuListFileName = str(args.i[0])
-    if(args.o is not None):
-        csvFileName = str(args.o[0])
-
-    if(not validInputFile()):
-        exit()
-
+# Function to get the results for the list of cpu's provided    
+def gatherResults(cpus, queue):
+    cpuDict = {
+    "Name":[],
+    "CPU Class":[],
+    "Socket":[],
+    "Launched":[],
+    "Overall Score":[],
+    "Single Thread Rating":[],
+    "Clockspeed":[],
+    "Turbo Speed":[],
+    "TDP":[],
+    "Cores":[],
+    "Threads":[]
+    }
     try:
-        cpus = getCPUs()
-
-        currentData = readCSV()
-        currentCPU = ""
-
-        print("Gathering Results...")
         for cpu in cpus:
             currentCPU = cpu
             result = get(baseURL+cpu)
@@ -255,26 +252,130 @@ if __name__ == "__main__":
             for x in sup:
                 x.replaceWith('')
 
-            dualCPU = getCPUName(soup)
-            getChipType(soup)
-            getSocketType(soup)
-            getTimeOfRelease(soup)
-            getOverallScore(soup)
-            getSingleThreadedScore(soup)
-            getDetails(soup, dualCPU)
+            dualCPU = getCPUName(soup, cpuDict)
+            getChipType(soup, cpuDict)
+            getSocketType(soup, cpuDict)
+            getTimeOfRelease(soup, cpuDict)
+            getOverallScore(soup, cpuDict)
+            getSingleThreadedScore(soup, cpuDict)
+            getDetails(soup, dualCPU, cpuDict)
 
-            fillGaps()
-        
-        rankCPUs()
-        addAuxData(currentData)
-        exportToCSV()
-        print("done.")
+            fillGaps(cpuDict)
+        queue.put(cpuDict)
+        return cpuDict
     except:
         print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
-        print("Make sure the CPU is valid and/or formatted correctly, as seen below:")
+        print("Make sure the CPU is valid and/or formatted correctly")
+        print("To see examples of correct formatting, add the \'-e\' flag\n")
+        queue.put(None)
+    
+# Evenly splits the number of cpu's to get by
+# the desired number of processes to run, up to
+# the maximum number the computer has, to get the
+# data in parallel to speed up the process
+def multiProcess(cpus, processesToRun):
+    cpuDict = {
+    "Name":[],
+    "CPU Class":[],
+    "Socket":[],
+    "Launched":[],
+    "Overall Score":[],
+    "Single Thread Rating":[],
+    "Clockspeed":[],
+    "Turbo Speed":[],
+    "TDP":[],
+    "Cores":[],
+    "Threads":[]
+    }
+    
+    if(processesToRun > numCPUs):
+        processesToRun = numCPUs
+    if(processesToRun > len(cpus)):
+        processesToRun = len(cpus)
+        
+    queue = Queue(processesToRun)
+    numCPUsPerProcess = len(cpus) // processesToRun
+    extra = len(cpus) % processesToRun
+    start = 0
+   
+    for x in range(processesToRun):
+        cpusToGet = []
+        end = start+numCPUsPerProcess
+        if(extra>0):
+            end += 1
+            extra -= 1
+          
+        cpusToGet = cpus[start:end]
+        start = end
+        
+        p = Process(target=gatherResults, args=(cpusToGet, queue))
+        processes.append(p)
+        p.start()
+    
+    while(not queue.full()):
+        pass
+        
+    while(not queue.empty()):
+        d = queue.get()
+        for k,v in d.items():
+            for x in v:
+                cpuDict[k].append(x)
+
+    return cpuDict
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='API to pull CPU data from cpubenchmark.net')
+    parser.add_argument('-i', nargs=1, metavar="file", help="input file containing a list of CPUs")
+    parser.add_argument('-o', nargs=1, metavar="file", help="output file to save data to")
+    parser.add_argument('-p', nargs='?', type=int, const=numCPUs, metavar="processes", 
+        help="the number of processes you would like to run. If left blank, it will run with the maximum number of available CPUs")
+    parser.add_argument('-e', action='store_true', help="examples of how CPUs should be formatted")
+
+    singleThreaded = True
+    cpusToUse = 0
+    
+    args = parser.parse_args()
+    if(args.e):
+        print("Exmaple CPU's:")
         print("Intel Xeon X5650 @ 2.67GHz&cpuCount=2")
         print("Apple M1 Pro 10 Core")
         print("Intel Core i7-6920HQ @ 2.90GHz")
         print("Intel Core i9-9900K @ 3.60GHz")
         print("Intel Xeon E5-2670 v2 @ 2.50GHz")
+        exit()
+        
+    if(args.i is not None):
+        cpuListFileName = str(args.i[0])
+    if(args.o is not None):
+        csvFileName = str(args.o[0])
+    if(args.p is not None):
+        cpusToUse = args.p
+        singleThreaded = False
+
+    if(not validInputFile()):
+        exit()
+
+    try:
+        start = time.time()
+        cpus = getCPUs()
+
+        currentData = readCSV()
+        currentCPU = ""
+
+        if(singleThreaded):
+            cpuDataDict = gatherResults(cpus, Queue(1))
+        else:
+            cpuDataDict = multiProcess(cpus, cpusToUse)
+        
+        rankCPUs(cpuDataDict)
+        addAuxData(currentData, cpuDataDict)
+        exportToCSV(cpuDataDict)
+        finalTime = time.time() - start
+
+        print("done.")
+        print("Finished in: "+str(finalTime)+" seconds")
+        
+    except:
+        print("\nAn error occurred during processing")
 
