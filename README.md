@@ -64,6 +64,15 @@ clock speed
 **TL;DR:** The more verbose you are about the cpu the more likely 
 you'll be to get the one you want/expect
 
+You can also add comments to CPUs like so
+```
+// This is a comment
+Intel Core i7-6920HQ @ 2.90GHz # This is also a comment
+// The CPU below this commented out and will not be used 
+//Intel Core i9-9900K @ 3.60GHz
+Intel Xeon E5-2670 v2 @ 2.50GHz
+```
+
 To run the script use the following command:
 ```
 ./cpubenchmarkapi.py
@@ -80,4 +89,13 @@ script to use those rather than the default ```cpus.txt``` and
 as seen here:
 ```
 ./cpubenchmarkapi.py -i serverCPUs.txt -o serverCPUsData.csv
+```
+
+Lastly, you can also tack on the -p command to add multiprocessing
+by default, it will use all available CPU's
+```
+./cpubenchmarkapi.py -p
+```
+```
+./cpubenchmarkapi.py -i CPU_Data/serverCPUs.txt -o CPU_Data/serverCPUsData.csv -p 6
 ```
