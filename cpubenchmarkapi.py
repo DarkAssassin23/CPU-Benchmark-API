@@ -9,6 +9,7 @@ baseURL = "https://www.cpubenchmark.net/cpu.php?cpu="
 cpuListFileName = "cpus.txt"
 # Default csv file
 csvFileName = "cpuData.csv"
+numPhysicalCPUs = 1
 numCPUs = os.cpu_count()
 processes = []
 cpuDataDict = {
@@ -32,9 +33,11 @@ def getCPUName(soup, cpuDict):
         print(n.text)
         cpuDict["Name"].append(n.text)
         if("[Dual CPU]" in n.text):
-            return True
+            return 2
+        elif("[Quad CPU]" in n.text):
+            return 4
         else:
-            return False
+            return 1
 
 # Extracts the single thread rating of the CPU from the website
 def getSingleThreadedScore(soup, cpuDict):
@@ -87,13 +90,13 @@ def getOverallScore(soup, cpuDict):
 
 # Extracts the additional details about the CPU from the website
 # ex. TDP, Number of Cores, Number of Threads, Clockspeeds, etc.
-def getDetails(soup, dualCPU, cpuDict):
+def getDetails(soup, numPhysicalCPUs, cpuDict):
     data = soup.find_all('p', class_="bg-table-row")
     data += soup.find_all('p', class_="mobile-column")
     data += soup.find_all('p', attrs={"style":"padding-left: 35px;"})
     string = ""
     for x in data:
-        if(("Cores" in x.text or "TDP" in x.text) and dualCPU):
+        if(("Cores" in x.text or "TDP" in x.text) and numPhysicalCPUs > 1):
             if(not "Cores" in x.text):
                 string += x.text+"\n"
             else: 
@@ -105,7 +108,7 @@ def getDetails(soup, dualCPU, cpuDict):
                     string += "Threads: "+x.text[x.text.find(":")+1:x.text.find(" ", x.text.find(" ")+1)]
 
         elif(not("TDP Down" in x.text) and not("TDP Up" in x.text)):
-            if("Cores" in x.text and not dualCPU):
+            if("Cores" in x.text and numPhysicalCPUs == 1):
                 if("Threads" in x.text):
                     if("Total Cores" in x.text):
                         string += x.text[x.text.find("Cores"):x.text.find("Cores,")]+"\n"
@@ -126,13 +129,13 @@ def getDetails(soup, dualCPU, cpuDict):
 
     d = dict(x.split(":") for x in string.strip().split("\n"))
     for k, v in d.items():
-        if(("TDP" in k or "Cores" in k or "Threads" in k) and dualCPU):
+        if("TDP" in k or "Cores" in k or "Threads" in k):
             if("TDP" in k):
                 tdp = v.strip().split(" ")
-                tdp[0] = int(tdp[0]) * 2
+                tdp[0] = int(tdp[0]) * numPhysicalCPUs
                 v = str(tdp[0])+" "+tdp[1]
             else:
-                v = int(v)*2
+                v = int(v)*numPhysicalCPUs
         if("TDP" in k):
             cpuDict["TDP"].append(v)
         else:
@@ -173,10 +176,14 @@ def fillGaps(cpuDict):
 # csv file
 def exportToCSV(cpuDict):
     print("Generating \'"+csvFileName+"\'...")
-    with open(csvFileName, 'w') as f:
-        writer = csv.writer(f)
-        writer.writerow(cpuDict.keys())
-        writer.writerows(zip(*cpuDict.values()))
+    try:
+        with open(csvFileName, 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(cpuDict.keys())
+            writer.writerows(zip(*cpuDict.values()))
+    except:
+        print("Error: unable to write to \'"+csvFileName+"\'. Make sure you have "+
+            "permission to write to this file and it is not currently open and try again")
 
 # Adds any auxiliary data to the respective cpu
 def addAuxData(currentData, cpuDict):
@@ -252,13 +259,13 @@ def gatherResults(cpus, queue):
             for x in sup:
                 x.replaceWith('')
 
-            dualCPU = getCPUName(soup, cpuDict)
+            numPhysicalCPUs = getCPUName(soup, cpuDict)
             getChipType(soup, cpuDict)
             getSocketType(soup, cpuDict)
             getTimeOfRelease(soup, cpuDict)
             getOverallScore(soup, cpuDict)
             getSingleThreadedScore(soup, cpuDict)
-            getDetails(soup, dualCPU, cpuDict)
+            getDetails(soup, numPhysicalCPUs, cpuDict)
 
             fillGaps(cpuDict)
         queue.put(cpuDict)
