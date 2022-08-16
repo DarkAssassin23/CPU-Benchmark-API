@@ -160,7 +160,15 @@ def getCPUs():
     with open(cpuListFileName, 'r') as f:
         lines = f.readlines()
     for line in lines:
-        cpus.append(line.strip())
+        # Find where comments start and ignore everything 
+        # after the start of the comment
+        if(line.find("#") != -1 or line.find("//") != -1):
+            if(min(line.find("#"), line.find("//")) != -1):
+                line = line[:min(line.find("#"), line.find("//"))]
+            else:
+                line = line[:max(line.find("#"), line.find("//"))]
+        if(not line.strip() == ''):
+            cpus.append(line.strip())
     return cpus
 
 # Fills in any blanks in data after the 
