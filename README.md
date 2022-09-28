@@ -15,7 +15,7 @@ python -m venv env
 ```
 Then, for Windows users:
 ```
-env/bin/activate.bat
+env/source/activate.bat
 ```
 For macOS and Linux users:
 ```
@@ -91,8 +91,8 @@ as seen here:
 ./cpubenchmarkapi.py -i serverCPUs.txt -o serverCPUsData.csv
 ```
 
-Lastly, you can also tack on the -p command to add multiprocessing
-by default, it will use all available CPU's
+Lastly, you can also tack on the -p command to add multiprocessing.
+By default, it will use all available CPU's
 ```
 ./cpubenchmarkapi.py -p
 ```
