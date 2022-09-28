@@ -132,7 +132,7 @@ def getDetails(soup, numPhysicalCPUs, cpuDict):
         if("TDP" in k or "Cores" in k or "Threads" in k):
             if("TDP" in k):
                 tdp = v.strip().split(" ")
-                tdp[0] = int(tdp[0]) * numPhysicalCPUs
+                tdp[0] = int(round(float(tdp[0]))) * numPhysicalCPUs
                 v = str(tdp[0])+" "+tdp[1]
             else:
                 v = int(v)*numPhysicalCPUs
