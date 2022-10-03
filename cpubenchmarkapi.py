@@ -330,7 +330,7 @@ def multiProcess(cpus, processesToRun):
     while(not queue.full()):
         pass
         
-    while(not queue.empty()):
+    for x in range(processesToRun):
         d = queue.get()
         for k,v in d.items():
             for x in v:
