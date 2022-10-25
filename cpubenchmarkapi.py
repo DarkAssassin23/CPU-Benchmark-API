@@ -44,10 +44,11 @@ def getSingleThreadedScore(soup, cpuDict):
     data = soup.get_text()
     location = data.find("Single Thread Rating:")
     str = data[location:data.find('\n',location)]
-
+    if(str==""):
+        str = "Single Thread Rating: N/A"
     d = dict(x.split(":") for x in str.split("\n"))
     for k, v in d.items():
-        cpuDict[k].append(v)
+        cpuDict[k].append(v.strip())
 
 # Extracts the class of the CPU from the website
 # ex. Laptop, Desktop, Server
@@ -55,24 +56,26 @@ def getChipType(soup, cpuDict):
     data = soup.get_text()
     location = data.find("Class:")
     str = data[location:data.find('\n',location)]
-
+    if(str==""):
+        str = "Class: N/A"
     d = dict(x.split(":") for x in str.split("\n"))
     for k, v in d.items():
         if(v==' '):
             v = "N/A"
-        cpuDict["CPU Class"].append(v)
+        cpuDict["CPU Class"].append(v.strip())
 
 # Extracts the type of socket the CPU is made for from the website
 def getSocketType(soup, cpuDict):
     data = soup.get_text()
     location = data.find("Socket:")
     str = data[location:data.find('\n',location)]
-
+    if(str==""):
+        str = "Socket: N/A"
     d = dict(x.split(":") for x in str.split("\n"))
     for k, v in d.items():
         if(v==' '):
             v = "N/A"
-        cpuDict[k].append(v)
+        cpuDict[k].append(v.strip())
 
 # Extracts the quarter and year the CPU was released from the website
 def getTimeOfRelease(soup, cpuDict):
@@ -211,21 +214,35 @@ def addAuxData(currentData, cpuDict):
 # Adds a ranking based on overall score and 
 # single threaded score
 def rankCPUs(cpuDict):
-    overallScores = [None] * len(cpuDict["Name"])
-    singleThreadScores = [None] * len(cpuDict["Name"])
+    overallScores = []
+    singleThreadScores = []
+    #overallScores = [None] * len(cpuDict["Name"])
+    #singleThreadScores = [None] * len(cpuDict["Name"])
     for x in range(len(cpuDict["Name"])):
-        overallScores[x] = int(cpuDict["Overall Score"][x])
-        singleThreadScores[x] = int(cpuDict["Single Thread Rating"][x])
+        if(not (cpuDict["Overall Score"][x] == "N/A")):
+            overallScores.append(int(cpuDict["Overall Score"][x]))
+        else:
+            overallScores.append(0)
+        if(not (cpuDict["Single Thread Rating"][x] == "N/A")):
+            singleThreadScores.append(int(cpuDict["Single Thread Rating"][x]))
+        else:
+            singleThreadScores.append(0)
 
     overallScores.sort(reverse=True)
     singleThreadScores.sort(reverse=True)
 
     cpuDict["Overall Rank"] = [None] * len(cpuDict["Name"])
     cpuDict["Single Threaded Rank"] = [None] * len(cpuDict["Name"])
-
+    
     for x in range(len(cpuDict["Name"])):
-        cpuDict["Overall Rank"][x] = overallScores.index(int(cpuDict["Overall Score"][x]))+1
-        cpuDict["Single Threaded Rank"][x] = singleThreadScores.index(int(cpuDict["Single Thread Rating"][x]))+1
+        if(cpuDict["Overall Score"][x] == "N/A"):
+            cpuDict["Overall Rank"][x] = "N/A";
+        else:
+            cpuDict["Overall Rank"][x] = overallScores.index(int(cpuDict["Overall Score"][x]))+1
+        if(cpuDict["Single Thread Rating"][x] == "N/A"):
+            cpuDict["Single Threaded Rank"][x] = "N/A"
+        else:
+            cpuDict["Single Threaded Rank"][x] = singleThreadScores.index(int(cpuDict["Single Thread Rating"][x]))+1
 
 # If the output CSV file exists, it gets read in
 # so if you added additional info to the csv
@@ -382,7 +399,6 @@ if __name__ == "__main__":
             cpuDataDict = gatherResults(cpus, Queue(1))
         else:
             cpuDataDict = multiProcess(cpus, cpusToUse)
-        
         rankCPUs(cpuDataDict)
         addAuxData(currentData, cpuDataDict)
         exportToCSV(cpuDataDict)
