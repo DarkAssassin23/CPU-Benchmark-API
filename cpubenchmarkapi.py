@@ -2,7 +2,7 @@
 from requests import get
 from bs4 import BeautifulSoup as bs
 from multiprocessing import Process, Queue
-import csv, os, argparse, time
+import csv, os, argparse, time, re
 
 baseURL = "https://www.cpubenchmark.net/cpu.php?cpu="
 # Default List of CPUs file
@@ -94,41 +94,55 @@ def getOverallScore(soup, cpuDict):
 # Extracts the additional details about the CPU from the website
 # ex. TDP, Number of Cores, Number of Threads, Clockspeeds, etc.
 def getDetails(soup, numPhysicalCPUs, cpuDict):
-    data = soup.find_all('p', class_="bg-table-row")
-    data += soup.find_all('p', class_="mobile-column")
-    data += soup.find_all('p', attrs={"style":"padding-left: 35px;"})
+    data = soup.find_all('p')
     string = ""
     for x in data:
-        if(("Cores" in x.text or "TDP" in x.text) and numPhysicalCPUs > 1):
-            if(not "Cores" in x.text):
-                string += x.text+"\n"
-            else: 
-                if("Threads" in x.text):
-                    string += x.text[:x.text.find("Threads")]+"\n"
-                    string += x.text[x.text.find("Threads"):]
-                else:
-                    string += x.text[:x.text.find(" ", x.text.find(" ")+1)]+"\n"
-                    string += "Threads: "+x.text[x.text.find(":")+1:x.text.find(" ", x.text.find(" ")+1)]
+        #print(x)
+        clockspeed = re.search("Clockspeed", x.text)
+        turbo = re.search("Turbo Speed", x.text)
+        tdp = re.search("TDP", x.text)
+        coresThreads = re.search("Cores", x.text)
+        realData = ""
+        if((not clockspeed == None)):
+            realData = clockspeed.string
+        if((not turbo == None)):
+            realData = turbo.string
+        if((not tdp == None)):
+            realData = tdp.string
+        if((not coresThreads == None)):
+            realData = coresThreads.string
 
-        elif(not("TDP Down" in x.text) and not("TDP Up" in x.text)):
-            if("Cores" in x.text and numPhysicalCPUs == 1):
-                if("Threads" in x.text):
-                    if("Total Cores" in x.text):
-                        string += x.text[x.text.find("Cores"):x.text.find("Cores,")]+"\n"
-                        string += "Threads:"+x.text[x.text.find(",")+1:x.text.find("Threads")]+"\n"
-                    elif("Primary" in x.text or "Performance" in x.text):
-                        string += "Clockspeed:"+x.text[x.text.find("Threads,")+8:x.text.find("Base")]+"\n"
-                        string += "Turbo Speed:"+x.text[x.text.find("Base,")+5:x.text.find("Turbo")]+"\n"
-                    elif("Secondary" in x.text or "Efficient" in x.text):
-                        pass
+        if(not realData == ""):   
+            if(("Cores" in realData or "TDP" in realData) and numPhysicalCPUs > 1):
+                if(not "Cores" in realData):
+                    string += realData+"\n"
+                else: 
+                    if("Threads" in realData):
+                        string += realData[:realData.find("Threads")]+"\n"
+                        string += realData[realData.find("Threads"):]+"\n"
                     else:
-                        string += x.text[:x.text.find("Threads")]+"\n"
-                        string += x.text[x.text.find("Threads"):]
-                else:
-                    string += x.text[:x.text.find(" ", x.text.find(" ")+1)]+"\n"
-                    string += "Threads: "+x.text[x.text.find(":")+1:x.text.find(" ", x.text.find(" ")+1)]
-            else:
-                string += x.text+"\n"
+                        string += realData[:realData.find(" ", realData.find(" ")+1)]+"\n"
+                        string += "Threads: "+realData[realData.find(":")+1:realData.find(" ", realData.find(" ")+1)]+"\n"
+
+            elif(not("TDP Down" in realData) and not("TDP Up" in realData)):
+                if("Cores:" in realData and numPhysicalCPUs == 1):
+                    if("Threads" in realData):
+                        if("Total Cores" in realData):
+                            string += realData[realData.find("Cores"):realData.find("Cores,")]+"\n"
+                            string += "Threads:"+realData[realData.find(",")+1:realData.find("Threads")]+"\n"
+                        elif("Primary" in realData or "Performance" in realData):
+                            string += "Clockspeed:"+realData[realData.find("Threads,")+8:realData.find("Base")]+"\n"
+                            string += "Turbo Speed:"+realData[realData.find("Base,")+5:realData.find("Turbo")]+"\n"
+                        elif("Secondary" in realData or "Efficient" in realData):
+                            pass
+                        else:
+                            string += realData[:realData.find("Threads")]+"\n"
+                            string += realData[realData.find("Threads"):]+"\n"
+                    else:
+                        string += realData[:realData.find(" ", realData.find(" ")+1)]+"\n"
+                        string += "Threads: "+realData[realData.find(":")+1:realData.find(" ", realData.find(" ")+1)]+"\n"
+                elif(len(realData)<30):
+                    string += realData+"\n"
 
     d = dict(x.split(":") for x in string.strip().split("\n"))
     for k, v in d.items():
@@ -216,8 +230,6 @@ def addAuxData(currentData, cpuDict):
 def rankCPUs(cpuDict):
     overallScores = []
     singleThreadScores = []
-    #overallScores = [None] * len(cpuDict["Name"])
-    #singleThreadScores = [None] * len(cpuDict["Name"])
     for x in range(len(cpuDict["Name"])):
         if(not (cpuDict["Overall Score"][x] == "N/A")):
             overallScores.append(int(cpuDict["Overall Score"][x]))
@@ -409,4 +421,3 @@ if __name__ == "__main__":
         
     except:
         print("\nAn error occurred during processing")
-
