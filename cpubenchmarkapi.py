@@ -87,9 +87,18 @@ def getTimeOfRelease(soup, cpuDict):
 
 # Extracts the Overall Score of the CPU from the website
 def getOverallScore(soup, cpuDict):
-    overallScore = soup.find_all('span', attrs={'style':"font-family: Arial, Helvetica, sans-serif;font-size: 44px;	font-weight: bold; color: #F48A18;"})
-    for os in overallScore:
-        cpuDict["Overall Score"].append(os.text)
+    data = soup.get_text()
+    # Index starts at the A and we want the end of the line
+    # so we add the length of the string we're trying to find
+    # to the index
+    toFind = "Average CPU Mark"
+    start = data.index(toFind)+len(toFind)
+    # Ensure we go far enough past the line to find to 
+    # get the score
+    end = data[:start+len(toFind)].rindex("\n") 
+    overallScore = data[start:end].strip()
+
+    cpuDict["Overall Score"].append(overallScore)
 
 # Extracts the additional details about the CPU from the website
 # ex. TDP, Number of Cores, Number of Threads, Clockspeeds, etc.
@@ -97,7 +106,6 @@ def getDetails(soup, numPhysicalCPUs, cpuDict):
     data = soup.find_all('p')
     string = ""
     for x in data:
-        #print(x)
         clockspeed = re.search("Clockspeed", x.text)
         turbo = re.search("Turbo Speed", x.text)
         tdp = re.search("TDP", x.text)
@@ -112,11 +120,11 @@ def getDetails(soup, numPhysicalCPUs, cpuDict):
         if((not coresThreads == None)):
             realData = coresThreads.string
 
-        if(not realData == ""):   
+        if(not realData == ""):
             if(("Cores" in realData or "TDP" in realData) and numPhysicalCPUs > 1):
                 if(not "Cores" in realData):
                     string += realData+"\n"
-                else: 
+                else:
                     if("Threads" in realData):
                         string += realData[:realData.find("Threads")]+"\n"
                         string += realData[realData.find("Threads"):]+"\n"
@@ -169,7 +177,7 @@ def validInputFile():
         return False
     return True
 
-# Gets a list of all the CPUs from the 
+# Gets a list of all the CPUs from the
 # list of CPUs file
 def getCPUs():
     lines = ""
@@ -177,7 +185,7 @@ def getCPUs():
     with open(cpuListFileName, 'r') as f:
         lines = f.readlines()
     for line in lines:
-        # Find where comments start and ignore everything 
+        # Find where comments start and ignore everything
         # after the start of the comment
         if(line.find("#") != -1 or line.find("//") != -1):
             if(min(line.find("#"), line.find("//")) != -1):
@@ -188,8 +196,8 @@ def getCPUs():
             cpus.append(line.strip())
     return cpus
 
-# Fills in any blanks in data after the 
-# CPUs data has been gathered 
+# Fills in any blanks in data after the
+# CPUs data has been gathered
 def fillGaps(cpuDict):
     # Make sure all categories were filled out
     targetLen = len(cpuDict["Name"])
@@ -197,7 +205,7 @@ def fillGaps(cpuDict):
         while(targetLen>len(v)):
             cpuDict[k].append("N/A")
 
-# Exports all the CPU data to the specified 
+# Exports all the CPU data to the specified
 # csv file
 def exportToCSV(cpuDict):
     print("Generating \'"+csvFileName+"\'...")
@@ -225,7 +233,7 @@ def addAuxData(currentData, cpuDict):
 
                 count += 1
 
-# Adds a ranking based on overall score and 
+# Adds a ranking based on overall score and
 # single threaded score
 def rankCPUs(cpuDict):
     overallScores = []
@@ -271,7 +279,7 @@ def readCSV():
                     d[k].append(v)
     return d
 
-# Function to get the results for the list of cpu's provided    
+# Function to get the results for the list of cpu's provided
 def gatherResults(cpus, queue):
     cpuDict = {
     "Name":[],
@@ -372,7 +380,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='API to pull CPU data from cpubenchmark.net')
     parser.add_argument('-i', nargs=1, metavar="file", help="input file containing a list of CPUs")
     parser.add_argument('-o', nargs=1, metavar="file", help="output file to save data to")
-    parser.add_argument('-p', nargs='?', type=int, const=numCPUs, metavar="processes", 
+    parser.add_argument('-p', nargs='?', type=int, const=numCPUs, metavar="processes",
         help="the number of processes you would like to run. If left blank, it will run with the maximum number of available CPUs")
     parser.add_argument('-e', action='store_true', help="examples of how CPUs should be formatted")
 
