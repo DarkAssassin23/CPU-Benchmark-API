@@ -2,7 +2,7 @@
 from requests import get
 from bs4 import BeautifulSoup as bs
 from multiprocessing import Process, Queue
-import csv, os, argparse, time, re
+import csv, os, argparse, time
 
 baseURL = "https://www.cpubenchmark.net/cpu.php?cpu="
 # Default List of CPUs file
