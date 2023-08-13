@@ -155,6 +155,8 @@ def getDetails(soup, numPhysicalCPUs, cpuDict):
             if(component == "Performance Cores" or component == "Primary Cores" 
                 or component == "Clockspeed" or component == "Turbo Speed"):
                 getClockspeedAndTurbo(item, cpuDict)
+            if(len(cpuDict["Name"]) > len(cpuDict["Turbo Speed"])):
+                cpuDict["Turbo Speed"].append("N/A")
 
 # Checks to see if the CPU list file exists
 def validInputFile():
