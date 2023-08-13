@@ -28,146 +28,133 @@ cpuDataDict = {
 
 # Extracts the name of the CPU from the website
 def getCPUName(soup, cpuDict):
-    nameLine = soup.find_all('span', class_="cpuname")
-    for n in nameLine:
-        print(n.text)
-        cpuDict["Name"].append(n.text)
-        if("[Dual CPU]" in n.text):
-            return 2
-        elif("[Quad CPU]" in n.text):
-            return 4
-        else:
-            return 1
+    name = soup.find('div', {"class":"desc-header"}).text.strip()
+    print(name)
+    cpuDict["Name"].append(name)
+    if("[Dual CPU]" in name):
+        return 2
+    elif("[Quad CPU]" in name):
+        return 4
+    else:
+        return 1
 
 # Extracts the single thread rating of the CPU from the website
 def getSingleThreadedScore(soup, cpuDict):
-    data = soup.get_text()
-    location = data.find("Single Thread Rating:")
-    str = data[location:data.find('\n',location)]
-    if(str==""):
-        str = "Single Thread Rating: N/A"
-    d = dict(x.split(":") for x in str.split("\n"))
-    for k, v in d.items():
-        cpuDict[k].append(v.strip())
+    data = soup.find("div", {"class":"right-desc"}).text
+    for item in data.strip().split("\n"):
+        if(item.split(":")[0] == "Single Thread Rating"):
+            cpuDict[item.split(":")[0]].append(item.split(":")[1].strip())
+            return
+    cpuDict["Single Thread Rating"].append("N/A")
 
 # Extracts the class of the CPU from the website
 # ex. Laptop, Desktop, Server
 def getChipType(soup, cpuDict):
-    data = soup.get_text()
-    location = data.find("Class:")
-    str = data[location:data.find('\n',location)]
-    if(str==""):
-        str = "Class: N/A"
-    d = dict(x.split(":") for x in str.split("\n"))
-    for k, v in d.items():
-        if(v==' '):
-            v = "N/A"
-        cpuDict["CPU Class"].append(v.strip())
+    data = soup.find("div", {"class" : "left-desc-cpu"}).text
+    for item in data.strip().split("\n"):
+        if(item.split(":")[0] == "Class" and item.split(":")[1].strip() != ""):
+            cpuDict["CPU Class"].append(item.split(":")[1].strip())
+            return
+    cpuDict["CPU Class"].append("N/A")
 
 # Extracts the type of socket the CPU is made for from the website
 def getSocketType(soup, cpuDict):
-    data = soup.get_text()
-    location = data.find("Socket:")
-    str = data[location:data.find('\n',location)]
-    if(str==""):
-        str = "Socket: N/A"
-    d = dict(x.split(":") for x in str.split("\n"))
-    for k, v in d.items():
-        if(v==' '):
-            v = "N/A"
-        cpuDict[k].append(v.strip())
+    data = soup.find("div", {"class" : "left-desc-cpu"}).text
+    for item in data.strip().split("\n"):
+        if(item.split(":")[0] == "Socket" and item.split(":")[1].strip() != ""):
+            cpuDict["Socket"].append(item.split(":")[1].strip())
+            return
+    cpuDict["Socket"].append("N/A")
 
 # Extracts the quarter and year the CPU was released from the website
 def getTimeOfRelease(soup, cpuDict):
-    data = soup.get_text()
-    location = data.find("CPU First Seen on Charts:")
-    str = data[location+25:data.find('\n',location)]
-
-    cpuDict["Launched"].append(str)
+    data = soup.find_all('p', {'class' : 'alt'})
+    for item in data:
+        if("CPU First Seen on Charts:" in item.text):
+            cpuDict["Launched"].append(item.text.split(":")[1].strip())
+            return
+    cpuDict["Launched"].append("N/A")
 
 # Extracts the Overall Score of the CPU from the website
 def getOverallScore(soup, cpuDict):
-    data = soup.get_text()
-    # Index starts at the A and we want the end of the line
-    # so we add the length of the string we're trying to find
-    # to the index
-    toFind = "Average CPU Mark"
-    start = data.index(toFind)+len(toFind)
-    # Ensure we go far enough past the line to find to 
-    # get the score
-    end = data[:start+len(toFind)].rindex("\n") 
-    overallScore = data[start:end].strip()
+    data = soup.find("div", {"class":"right-desc"}).find_all("span")
+    for item in data:
+        if(item.text.isdigit()):
+            cpuDict["Overall Score"].append(item.text)
+            return
 
-    cpuDict["Overall Score"].append(overallScore)
+# Extracts the Typical TDP usage of the CPU
+def getTDP(data, numPhysicalCPUs):
+    for item in data:
+        if("Typical TDP" in item.text):
+            # Some Apple CPUs have decimals in their wattages  
+            tdp = int(round(float(item.text.split(":")[1].strip().split(" ")[0]))) * numPhysicalCPUs
+            unit = item.text.split(":")[1].strip().split(" ")[1]
+            return f"{tdp} {unit}"
+    return "N/A"
+
+# Extracts the number of CPU cores and threads
+def getCoresAndThreads(data, numPhysicalCPUs, cpuDict):
+    threadsPresent = ("Threads" in data.text)
+    if(data.text.split(":")[0] == "Cores"):
+        coresAndThreads = data.text.replace(":", "").split(" ")
+        # Cores
+        cpuDict[coresAndThreads[0]].append(int(coresAndThreads[1]) * numPhysicalCPUs)
+        # Threads
+        if(threadsPresent):
+            cpuDict[coresAndThreads[2]].append(int(coresAndThreads[3]) * numPhysicalCPUs)
+        else:
+            cpuDict["Threads"].append(int(coresAndThreads[1]) * numPhysicalCPUs)
+    else:
+        coresAndThreads = data.text.split(":")[1].split(",")
+        cores = coresAndThreads[0].strip().split(" ")
+        threads = coresAndThreads[1].strip().split(" ")
+
+        cpuDict[cores[1]].append(int(cores[0]) * numPhysicalCPUs)
+        cpuDict[threads[1]].append(int(threads[0]) * numPhysicalCPUs)
+
+# Extracts the CPU base clockspeed and turbo speed
+def getClockspeedAndTurbo(data, cpuDict):
+    component = data.text.split(":")[0]
+    if(component == "Clockspeed" or component == "Turbo Speed"):
+        cpuDict[component].append(data.text.split(":")[1].strip())
+    else:
+        pivot = data.text.find("Threads")
+        pivot += data.text[pivot:].find(",") + 1
+        base = data.text[pivot:].split(",")[0].strip()
+        turbo = data.text[pivot:].split(",")[1].strip()
+
+        baseComponents = base.split(" ")
+        turboComponents = turbo.split(" ")
+
+        # Means base speed is NA
+        if(len(baseComponents) == 2):
+            cpuDict["Clockspeed"].append("N/A")
+        else:
+            cpuDict["Clockspeed"].append(f"{baseComponents[0]} {baseComponents[1]}")
+
+        # Means turbo speed is NA
+        if(len(turboComponents) == 2):
+            cpuDict["Turbo Speed"].append("N/A")
+        else:
+            cpuDict["Turbo Speed"].append(f"{turboComponents[0]} {turboComponents[1]}")
+
 
 # Extracts the additional details about the CPU from the website
 # ex. TDP, Number of Cores, Number of Threads, Clockspeeds, etc.
 def getDetails(soup, numPhysicalCPUs, cpuDict):
-    data = soup.find_all('p')
-    string = ""
-    for x in data:
-        clockspeed = re.search("Clockspeed", x.text)
-        turbo = re.search("Turbo Speed", x.text)
-        tdp = re.search("TDP", x.text)
-        coresThreads = re.search("Cores", x.text)
-        realData = ""
-        if((not clockspeed == None)):
-            realData = clockspeed.string
-        if((not turbo == None)):
-            realData = turbo.string
-        if((not tdp == None)):
-            realData = tdp.string
-        if((not coresThreads == None)):
-            realData = coresThreads.string
-
-        if(not realData == ""):
-            if(("Cores" in realData or "TDP" in realData) and numPhysicalCPUs > 1):
-                if(not "Cores" in realData):
-                    string += realData+"\n"
-                else:
-                    if("Threads" in realData):
-                        string += realData[:realData.find("Threads")]+"\n"
-                        string += realData[realData.find("Threads"):]+"\n"
-                    else:
-                        string += realData[:realData.find(" ", realData.find(" ")+1)]+"\n"
-                        string += "Threads: "+realData[realData.find(":")+1:realData.find(" ", realData.find(" ")+1)]+"\n"
-
-            elif(not("TDP Down" in realData) and not("TDP Up" in realData)):
-                if("Cores:" in realData and numPhysicalCPUs == 1):
-                    if("Threads" in realData):
-                        if("Total Cores" in realData):
-                            string += realData[realData.find("Cores"):realData.find("Cores,")]+"\n"
-                            string += "Threads:"+realData[realData.find(",")+1:realData.find("Threads")]+"\n"
-                        elif("Primary" in realData or "Performance" in realData):
-                            string += "Clockspeed:"+realData[realData.find("Threads,")+8:realData.find("Base")]+"\n"
-                            string += "Turbo Speed:"+realData[realData.find("Base,")+5:realData.find("Turbo")]+"\n"
-                        elif("Secondary" in realData or "Efficient" in realData):
-                            pass
-                        else:
-                            string += realData[:realData.find("Threads")]+"\n"
-                            string += realData[realData.find("Threads"):]+"\n"
-                    else:
-                        string += realData[:realData.find(" ", realData.find(" ")+1)]+"\n"
-                        string += "Threads: "+realData[realData.find(":")+1:realData.find(" ", realData.find(" ")+1)]+"\n"
-                elif(len(realData)<30):
-                    string += realData+"\n"
-
-    d = dict(x.split(":") for x in string.strip().split("\n"))
-    for k, v in d.items():
-        if("TDP" in k or "Cores" in k or "Threads" in k):
-            if("TDP" in k):
-                tdp = v.strip().split(" ")
-                tdp[0] = int(round(float(tdp[0]))) * numPhysicalCPUs
-                v = str(tdp[0])+" "+tdp[1]
-            else:
-                v = int(v)*numPhysicalCPUs
-        if("TDP" in k):
-            cpuDict["TDP"].append(v)
-        else:
-            if(v==' ' or 'NA' in str(v)):
-                v = "N/A"
-            cpuDict[k].append(v)
-    return d
+    data = soup.find('div', {'class':'desc-body'}).find_all('p')
+    cpuDict["TDP"].append(getTDP(data, numPhysicalCPUs))
+    for item in data: 
+        if(item.text != ""):
+            component = item.text.split(":")[0]
+            componentData = item.text.split(":")[1]
+            if(component == "Cores" or component == "Total Cores"):
+                getCoresAndThreads(item, numPhysicalCPUs, cpuDict)
+            
+            if(component == "Performance Cores" or component == "Primary Cores" 
+                or component == "Clockspeed" or component == "Turbo Speed"):
+                getClockspeedAndTurbo(item, cpuDict)
 
 # Checks to see if the CPU list file exists
 def validInputFile():
