@@ -89,6 +89,10 @@ def getTDP(data, numPhysicalCPUs):
         if("Typical TDP" in item.text):
             # Some Apple CPUs have decimals in their wattages  
             tdp = int(round(float(item.text.split(":")[1].strip().split(" ")[0]))) * numPhysicalCPUs
+            # Some CPUs have a negative tdp some how?
+            # Ex. Intel Core2 Duo E8335 @ 2.66GHz (as of Aug. 8, 2023)
+            if(tdp < 0):
+                tdp = "N/A"
             unit = item.text.split(":")[1].strip().split(" ")[1]
             return f"{tdp} {unit}"
     return "N/A"
