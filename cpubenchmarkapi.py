@@ -148,14 +148,12 @@ def getClockspeedAndTurbo(data, cpuDict):
             turboSpeed = float(turboComponents[0].replace(".","").replace(",","."))
             turboSpeed = round(turboSpeed, 1)
 
-        # Means base speed is NA
-        if(len(baseComponents) == 2):
+        if(baseSpeed == 'NA'):
             cpuDict["Clockspeed"].append("N/A")
         else:
             cpuDict["Clockspeed"].append(f"{baseSpeed} {baseComponents[1]}")
 
-        # Means turbo speed is NA
-        if(len(turboComponents) == 2):
+        if(turboSpeed == 'NA'):
             cpuDict["Turbo Speed"].append("N/A")
         else:
             cpuDict["Turbo Speed"].append(f"{turboSpeed} {turboComponents[1]}")
@@ -178,6 +176,8 @@ def getDetails(soup, numPhysicalCPUs, cpuDict):
                 getClockspeedAndTurbo(item, cpuDict)
     if(len(cpuDict["Name"]) > len(cpuDict["Turbo Speed"])):
         cpuDict["Turbo Speed"].append("N/A")
+    if(len(cpuDict["Name"]) > len(cpuDict["Clockspeed"])):
+        cpuDict["Clockspeed"].append("N/A")
 
 # Checks to see if the CPU list file exists
 def validInputFile():
