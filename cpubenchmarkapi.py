@@ -117,7 +117,12 @@ def getCoresAndThreads(data, numPhysicalCPUs, cpuDict):
 def getClockspeedAndTurbo(data, cpuDict):
     component = data.text.split(":")[0]
     if(component == "Clockspeed" or component == "Turbo Speed"):
-        cpuDict[component].append(data.text.split(":")[1].strip())
+        speed = data.text.split(":")[1].strip().split()[0]
+        # Some clockspeeds are in MHz rather than GHz, so we'll fix that
+        if("," in speed):
+            speed = float(speed.replace(".","").replace(",","."))
+            speed = round(speed, 1) 
+        cpuDict[component].append(f"{speed} GHz")
     else:
         pivot = data.text.find("Threads")
         pivot += data.text[pivot:].find(",") + 1
@@ -126,18 +131,30 @@ def getClockspeedAndTurbo(data, cpuDict):
 
         baseComponents = base.split(" ")
         turboComponents = turbo.split(" ")
+        
+        # Some clockspeeds are in MHz rather than GHz, so we'll fix that
+        baseSpeed = baseComponents[0]
+        turboSpeed = turboComponents[0]
+
+        if("," in baseSpeed):
+            baseSpeed = float(baseSpeed.replace(".","").replace(",","."))
+            baseSpeed = round(baseSpeed, 1)
+
+        if("," in turboSpeed):
+            turboSpeed = float(turboComponents[0].replace(".","").replace(",","."))
+            turboSpeed = round(turboSpeed, 1)
 
         # Means base speed is NA
         if(len(baseComponents) == 2):
             cpuDict["Clockspeed"].append("N/A")
         else:
-            cpuDict["Clockspeed"].append(f"{baseComponents[0]} {baseComponents[1]}")
+            cpuDict["Clockspeed"].append(f"{baseSpeed} {baseComponents[1]}")
 
         # Means turbo speed is NA
         if(len(turboComponents) == 2):
             cpuDict["Turbo Speed"].append("N/A")
         else:
-            cpuDict["Turbo Speed"].append(f"{turboComponents[0]} {turboComponents[1]}")
+            cpuDict["Turbo Speed"].append(f"{turboSpeed} {turboComponents[1]}")
 
 
 # Extracts the additional details about the CPU from the website
@@ -155,8 +172,8 @@ def getDetails(soup, numPhysicalCPUs, cpuDict):
             if(component == "Performance Cores" or component == "Primary Cores" 
                 or component == "Clockspeed" or component == "Turbo Speed"):
                 getClockspeedAndTurbo(item, cpuDict)
-            if(len(cpuDict["Name"]) > len(cpuDict["Turbo Speed"])):
-                cpuDict["Turbo Speed"].append("N/A")
+    if(len(cpuDict["Name"]) > len(cpuDict["Turbo Speed"])):
+        cpuDict["Turbo Speed"].append("N/A")
 
 # Checks to see if the CPU list file exists
 def validInputFile():
@@ -283,32 +300,32 @@ def gatherResults(cpus, queue):
     "Cores":[],
     "Threads":[]
     }
-    try:
-        for cpu in cpus:
-            currentCPU = cpu
-            result = get(baseURL+cpu)
-            soup = bs(result.content, "html.parser")
+    # try:
+    for cpu in cpus:
+        currentCPU = cpu
+        result = get(baseURL+cpu)
+        soup = bs(result.content, "html.parser")
 
-            sup = soup.find_all('sup')
-            for x in sup:
-                x.replaceWith('')
+        sup = soup.find_all('sup')
+        for x in sup:
+            x.replaceWith('')
 
-            numPhysicalCPUs = getCPUName(soup, cpuDict)
-            getChipType(soup, cpuDict)
-            getSocketType(soup, cpuDict)
-            getTimeOfRelease(soup, cpuDict)
-            getOverallScore(soup, cpuDict)
-            getSingleThreadedScore(soup, cpuDict)
-            getDetails(soup, numPhysicalCPUs, cpuDict)
+        numPhysicalCPUs = getCPUName(soup, cpuDict)
+        getChipType(soup, cpuDict)
+        getSocketType(soup, cpuDict)
+        getTimeOfRelease(soup, cpuDict)
+        getOverallScore(soup, cpuDict)
+        getSingleThreadedScore(soup, cpuDict)
+        getDetails(soup, numPhysicalCPUs, cpuDict)
 
-            fillGaps(cpuDict)
-        queue.put(cpuDict)
-        return cpuDict
-    except:
-        print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
-        print("Make sure the CPU is valid and/or formatted correctly")
-        print("To see examples of correct formatting, add the \'-e\' flag\n")
-        queue.put(None)
+        fillGaps(cpuDict)
+    queue.put(cpuDict)
+    return cpuDict
+    # except:
+    #     print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
+    #     print("Make sure the CPU is valid and/or formatted correctly")
+    #     print("To see examples of correct formatting, add the \'-e\' flag\n")
+    #     queue.put(None)
     
 # Evenly splits the number of cpu's to get by
 # the desired number of processes to run, up to
@@ -397,24 +414,24 @@ if __name__ == "__main__":
     if(not validInputFile()):
         exit()
 
-    try:
-        start = time.time()
-        cpus = getCPUs()
+    # try:
+    start = time.time()
+    cpus = getCPUs()
 
-        currentData = readCSV()
-        currentCPU = ""
+    currentData = readCSV()
+    currentCPU = ""
 
-        if(singleThreaded):
-            cpuDataDict = gatherResults(cpus, Queue(1))
-        else:
-            cpuDataDict = multiProcess(cpus, cpusToUse)
-        rankCPUs(cpuDataDict)
-        addAuxData(currentData, cpuDataDict)
-        exportToCSV(cpuDataDict)
-        finalTime = time.time() - start
+    if(singleThreaded):
+        cpuDataDict = gatherResults(cpus, Queue(1))
+    else:
+        cpuDataDict = multiProcess(cpus, cpusToUse)
+    rankCPUs(cpuDataDict)
+    addAuxData(currentData, cpuDataDict)
+    exportToCSV(cpuDataDict)
+    finalTime = time.time() - start
 
-        print("done.")
-        print("Finished in: "+str(finalTime)+" seconds")
+    print("done.")
+    print("Finished in: "+str(finalTime)+" seconds")
         
-    except:
-        print("\nAn error occurred during processing")
+    # except:
+    #     print("\nAn error occurred during processing")
