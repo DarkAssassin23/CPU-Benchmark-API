@@ -41,10 +41,13 @@ def getCPUName(soup, cpuDict):
 # Extracts the single thread rating of the CPU from the website
 def getSingleThreadedScore(soup, cpuDict):
     data = soup.find("div", {"class":"right-desc"}).text
+    isNext = False
     for item in data.strip().split("\n"):
-        if(item.split(":")[0] == "Single Thread Rating"):
-            cpuDict[item.split(":")[0]].append(item.split(":")[1].strip())
+        if(isNext == True):
+            cpuDict["Single Thread Rating"].append(item.strip())
             return
+        if("Single Thread Rating" in item):
+            isNext = True
     cpuDict["Single Thread Rating"].append("N/A")
 
 # Extracts the class of the CPU from the website
