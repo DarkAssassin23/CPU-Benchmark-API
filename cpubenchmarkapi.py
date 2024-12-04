@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup as bs
 from multiprocessing import Process, Queue
 import csv, os, argparse, time
 
+# Add useragent to prevent 403 error
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0'}
 baseURL = "https://www.cpubenchmark.net/cpu.php?cpu="
 # Default List of CPUs file
 cpuListFileName = "cpus.txt"
@@ -310,32 +312,32 @@ def gatherResults(cpus, queue):
     "Cores":[],
     "Threads":[]
     }
-    # try:
-    for cpu in cpus:
-        currentCPU = cpu
-        result = get(baseURL+cpu)
-        soup = bs(result.content, "html.parser")
+    try:
+        for cpu in cpus:
+            currentCPU = cpu
+            result = get(f'{baseURL}{cpu}', headers=headers)
+            soup = bs(result.content, "html.parser")
 
-        sup = soup.find_all('sup')
-        for x in sup:
-            x.replaceWith('')
+            sup = soup.find_all('sup')
+            for x in sup:
+                x.replaceWith('')
 
-        numPhysicalCPUs = getCPUName(soup, cpuDict)
-        getChipType(soup, cpuDict)
-        getSocketType(soup, cpuDict)
-        getTimeOfRelease(soup, cpuDict)
-        getOverallScore(soup, cpuDict)
-        getSingleThreadedScore(soup, cpuDict)
-        getDetails(soup, numPhysicalCPUs, cpuDict)
+            numPhysicalCPUs = getCPUName(soup, cpuDict)
+            getChipType(soup, cpuDict)
+            getSocketType(soup, cpuDict)
+            getTimeOfRelease(soup, cpuDict)
+            getOverallScore(soup, cpuDict)
+            getSingleThreadedScore(soup, cpuDict)
+            getDetails(soup, numPhysicalCPUs, cpuDict)
 
-        fillGaps(cpuDict)
-    queue.put(cpuDict)
-    return cpuDict
-    # except:
-    #     print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
-    #     print("Make sure the CPU is valid and/or formatted correctly")
-    #     print("To see examples of correct formatting, add the \'-e\' flag\n")
-    #     queue.put(None)
+            fillGaps(cpuDict)
+        queue.put(cpuDict)
+        return cpuDict
+    except:
+        print("\nAn error occurred gathering CPU data on the following CPU \'"+currentCPU+"\'.")
+        print("Make sure the CPU is valid and/or formatted correctly")
+        print("To see examples of correct formatting, add the \'-e\' flag\n")
+        queue.put(None)
     
 # Evenly splits the number of cpu's to get by
 # the desired number of processes to run, up to
@@ -424,24 +426,24 @@ if __name__ == "__main__":
     if(not validInputFile()):
         exit()
 
-    # try:
-    start = time.time()
-    cpus = getCPUs()
+    try:
+        start = time.time()
+        cpus = getCPUs()
 
-    currentData = readCSV()
-    currentCPU = ""
+        currentData = readCSV()
+        currentCPU = ""
 
-    if(singleThreaded):
-        cpuDataDict = gatherResults(cpus, Queue(1))
-    else:
-        cpuDataDict = multiProcess(cpus, cpusToUse)
-    rankCPUs(cpuDataDict)
-    addAuxData(currentData, cpuDataDict)
-    exportToCSV(cpuDataDict)
-    finalTime = time.time() - start
+        if(singleThreaded):
+            cpuDataDict = gatherResults(cpus, Queue(1))
+        else:
+            cpuDataDict = multiProcess(cpus, cpusToUse)
+        rankCPUs(cpuDataDict)
+        addAuxData(currentData, cpuDataDict)
+        exportToCSV(cpuDataDict)
+        finalTime = time.time() - start
 
-    print("done.")
-    print("Finished in: "+str(finalTime)+" seconds")
+        print("done.")
+        print("Finished in: "+str(finalTime)+" seconds")
         
-    # except:
-    #     print("\nAn error occurred during processing")
+    except:
+        print("\nAn error occurred during processing")
